@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WGGameDGLABPlayer - 伤害监控</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="mb-4">WGGameDGLABPlayer - 伤害监控</h1>
+        
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">实时状态</h5>
+                    </div>
+                    <div class="card-body">
+                        <p id="connectionStatus" class="mb-0">
+                            服务器状态: <span class="status-badge status-disconnected">断开连接</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">控制面板</h5>
+                        <button id="clearHistory" class="btn btn-sm btn-danger">清空历史</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="control-panel">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="autoScroll" checked>
+                                <label class="form-check-label" for="autoScroll">自动滚动</label>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="showChart" checked>
+                                <label class="form-check-label" for="showChart">显示图表</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">伤害统计</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="damageChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">伤害历史</h5>
+            </div>
+            <div class="card-body">
+                <div id="damageHistory"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let autoScroll = true;
+        let showChart = true;
+        const damageHistory = document.getElementById('damageHistory');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const clearHistoryBtn = document.getElementById('clearHistory');
+        const autoScrollSwitch = document.getElementById('autoScroll');
+        const showChartSwitch = document.getElementById('showChart');
+        let damageChart = null;
+
+        // 初始化图表
+        function initChart() {
+            const ctx = document.getElementById('damageChart').getContext('2d');
+            damageChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '伤害值',
+                        data: [],
+                        borderColor: 'rgb(220, 53, 69)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // 更新图表
+        function updateChart(data) {
+            if (!damageChart) {
+                initChart();
+            }
+
+            const labels = data.map(item => new Date(item.timestamp * 1000).toLocaleTimeString());
+            const values = data.map(item => item.damage);
+
+            damageChart.data.labels = labels;
+            damageChart.data.datasets[0].data = values;
+            damageChart.update();
+        }
+
+        // 检查连接状态
+        function checkConnection() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    const statusBadge = connectionStatus.querySelector('.status-badge');
+                    statusBadge.textContent = data.status === 'running' ? '已连接' : '断开连接';
+                    statusBadge.className = `status-badge ${data.status === 'running' ? 'status-connected' : 'status-disconnected'}`;
+                })
+                .catch(() => {
+                    const statusBadge = connectionStatus.querySelector('.status-badge');
+                    statusBadge.textContent = '断开连接';
+                    statusBadge.className = 'status-badge status-disconnected';
+                });
+        }
+
+        // 获取伤害历史
+        function fetchDamageHistory() {
+            fetch('/api/damage/history')
+                .then(response => response.json())
+                .then(data => {
+                    damageHistory.innerHTML = data.map(item => `
+                        <div class="damage-item">
+                            <div class="damage-value">伤害: ${item.damage}</div>
+                            <div class="attacker-info">
+                                攻击者: ${item.attacker.name || '未知'} (ID: ${item.attacker.id})
+                            </div>
+                            <div class="timestamp">
+                                ${new Date(item.timestamp * 1000).toLocaleString()}
+                            </div>
+                        </div>
+                    `).join('');
+                    
+                    if (autoScroll) {
+                        damageHistory.scrollTop = damageHistory.scrollHeight;
+                    }
+
+                    if (showChart) {
+                        updateChart(data);
+                    }
+                });
+        }
+
+        // 清空历史记录
+        clearHistoryBtn.addEventListener('click', () => {
+            fetch('/api/damage/clear', { method: 'POST' })
+                .then(() => {
+                    damageHistory.innerHTML = '';
+                    if (damageChart) {
+                        damageChart.data.labels = [];
+                        damageChart.data.datasets[0].data = [];
+                        damageChart.update();
+                    }
+                    checkConnection();
+                });
+        });
+
+        // 自动滚动开关
+        autoScrollSwitch.addEventListener('change', (e) => {
+            autoScroll = e.target.checked;
+        });
+
+        // 图表显示开关
+        showChartSwitch.addEventListener('change', (e) => {
+            showChart = e.target.checked;
+            document.querySelector('.chart-container').style.display = showChart ? 'block' : 'none';
+            if (showChart) {
+                fetchDamageHistory();
+            }
+        });
+
+        // 定期更新数据
+        setInterval(checkConnection, 5000);
+        setInterval(fetchDamageHistory, 1000);
+
+        // 初始加载
+        initChart();
+        checkConnection();
+        fetchDamageHistory();
+    </script>
+</body>
+</html> 

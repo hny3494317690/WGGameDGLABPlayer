@@ -1,0 +1,17 @@
+{
+    "webui_url": "http://localhost:5001",
+    "connection_check_interval": 5,
+    "debug_mode": false,
+    "log_level": "INFO",
+    "dg_lab": {
+        "enabled": true,
+        "port": "COM3",
+        "baud_rate": 9600,
+        "intensity_mapping": {
+            "min_damage": 0,
+            "max_damage": 1000,
+            "min_intensity": 0,
+            "max_intensity": 100
+        }
+    }
+} 

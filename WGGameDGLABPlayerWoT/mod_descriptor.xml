@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+    <version value="1.0.0"/>
+    <name value="WGGameDGLABPlayerWoT"/>
+    <description value="将游戏中的伤害数据发送到DG-Lab控制器，支持实时伤害监控和DG-Lab控制"/>
+    <author value="hny3494317690"/>
+    <isEnabled value="true"/>
+    <dependencies>
+        <dependency name="WoT" value="1.0.0"/>
+    </dependencies>
+    <requirements>
+        <requirement name="python-requests" value="2.31.0"/>
+    </requirements>
+    <autoLoad value="true"/>
+    <startupScript value="__init__.py"/>
+    <initFunction value="init"/>
+    <finiFunction value="fini"/>
+    <modPath value="WGGameDGLABPlayerWoT"/>
+    <webui>
+        <enabled value="true"/>
+        <port value="5001"/>
+    </webui>
+</root> 
